@@ -1,5 +1,5 @@
+from .image import Image
 from cv2 import dnn_superres
-from numpy import ndarray
 
 
 class Upscaler:
@@ -9,7 +9,7 @@ class Upscaler:
         self.__sr.readModel(self.__get_model_path(4))
         self.__sr.setModel('fsrcnn', 4)
 
-    def upscale(self, image: ndarray, scale: int = None) -> ndarray:
+    def upscale(self, image: Image, scale: int = None) -> Image:
         target_scale: int
         if scale is None:
             scale = self.get_recommended_scale(image, self.__dpi)
@@ -23,12 +23,12 @@ class Upscaler:
         if target_scale != self.__sr.getScale():
             self.__sr.readModel(self.__get_model_path(target_scale))
             self.__sr.setModel('fsrcnn', target_scale)
-        image: ndarray = self.__sr.upsample(image)
+        image.set_data(self.__sr.upsample(image.get_data()))
         return self.upscale(image, scale)
 
     @staticmethod
-    def get_recommended_scale(image: ndarray, dpi: int = 300) -> int:
-        height, width, _ = image.shape
+    def get_recommended_scale(image: Image, dpi: int = 300) -> int:
+        height, width = image.get_size()
         return round(11.69 * dpi / height + 0.49)
 
     @staticmethod
