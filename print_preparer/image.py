@@ -1,7 +1,13 @@
 from pathlib import Path
 from numpy import ndarray, argwhere, concatenate, array, max as np_max, min as np_min, full
 from cv2 import imread, imwrite, rotate, resize, IMREAD_UNCHANGED
-from typing import Sequence, Optional
+from typing import TypeVar, Optional, Self, Tuple
+
+
+Color = TypeVar('Color', Tuple[int, int, int], Tuple[int, int, int, int])
+FilterByColor = TypeVar('FilterByColor',
+                        Tuple[Optional[int], Optional[int], Optional[int]],
+                        Tuple[Optional[int], Optional[int], Optional[int], Optional[int]])
 
 
 class Image:
@@ -22,11 +28,11 @@ class Image:
         imwrite(str(path), self.__data)
         return path
 
-    def get_size(self) -> tuple[int, int]:
+    def get_size(self) -> Tuple[int, int]:
         height, width, _ = self.__data.shape
         return height, width
 
-    def get_not_empty_range(self) -> Sequence[Sequence[int, int], Sequence[int, int]]:
+    def get_not_empty_range(self) -> Tuple[Tuple[int, int], Tuple[int, int]]:
         height, width = self.get_size()
         if self.__data.shape[2] > 3:
             mask: ndarray = array([[[False, False, False, True]] * width] * height)
@@ -37,7 +43,7 @@ class Image:
         return ((np_min(res_matrix[:, 0]), np_max(res_matrix[:, 0])),
                 (np_min(res_matrix[:, 1]), np_max(res_matrix[:, 1])))
 
-    def rotate(self, angle: int) -> 'Image':
+    def rotate(self, angle: int) -> Self:
         if angle % 360 == 0:
             return self
         if angle % 90 > 0:
@@ -49,15 +55,15 @@ class Image:
         self.__data = rotate(self.__data, angle // 90 - 1)
         return self
 
-    def crop(self, y: Sequence[int, int], x: Sequence[int, int]) -> 'Image':
+    def crop(self, y: Tuple[int, int], x: Tuple[int, int]) -> Self:
         self.__data = self.__data[y[0]:y[1], x[0]: x[1]]
         return self
 
-    def resize_canvas(self, height: int, width: int, color: Sequence[int, int, int] = (255, 255, 255)) -> 'Image':
+    def resize_canvas(self, height: int, width: int, color: Color = (255, 255, 255, 0)) -> Self:
         h, w, c = self.__data.shape
-        to_fill: Sequence[int, ...] = color
-        if c > 3:
-            to_fill = (*color, 1)
+        to_fill = color
+        if len(color) < c:
+            to_fill = (*color, 0)
         height_diff: int = height - h
         width_diff: int = width - w
         if width_diff < 0 or height_diff < 0:
@@ -81,7 +87,7 @@ class Image:
             ), axis=1)
         return self
 
-    def resize(self, height: int = None, width: int = None, save_ratio: bool = False) -> 'Image':
+    def resize(self, height: int = None, width: int = None, save_ratio: bool = False) -> Self:
         h, w = self.get_size()
         current_ratio: float = h / w
         if height is None and width is None:
@@ -102,14 +108,14 @@ class Image:
         self.__data = resize(self.__data, (width, height))
         return self
 
-    def change_transparency_color(self, color: Sequence[int, int, int, Optional[int]] = (255, 255, 255)) -> 'Image':
+    def change_transparency_color(self, color: Color = (255, 255, 255, 0)) -> Self:
         if self.__data.shape[2] < 4:
             return self
         if len(color) < 4:
             color = (*color, 0)
         return self.change_color((None, None, None, 0), color)
 
-    def change_color(self, current_color: Sequence, replacement_color: Sequence) -> 'Image':
+    def change_color(self, current_color: FilterByColor, replacement_color: Color) -> Self:
         channels: int = self.__data.shape[-1]
         if channels == 4:
             if channels - len(current_color) == 1:
@@ -125,6 +131,6 @@ class Image:
         self.__data[condition] = replacement_color
         return self
 
-    def auto_crop(self) -> 'Image':
+    def auto_crop(self) -> Self:
         not_empty_range = self.get_not_empty_range()
         return self.crop(*not_empty_range)
