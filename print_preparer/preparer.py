@@ -30,3 +30,10 @@ class Preparer:
         if height < width:
             return True
         return False
+
+    @staticmethod
+    def __must_be_resized(image: Image) -> bool:
+        height, width = image.get_size()
+        if round(height / width, 3) != 2 ** 0.5:
+            return True
+        return False
